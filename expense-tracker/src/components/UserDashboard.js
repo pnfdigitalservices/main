@@ -1,169 +1,157 @@
-// Frontend (UserDashboard.js)
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import '../css/UserDashboard.css';
-import { Link } from 'react-router-dom';
+import '../css/UserDashboard.css'; // Import your CSS
+import { useNavigate } from 'react-router-dom';
+import Select from 'react-select';
+import { useAuth } from '../App.js'; // Import useAuth
+
 
 function UserDashboard() {
-    const [productTypes, setProductTypes] = useState([]);
     const [products, setProducts] = useState([]);
-    const [selectedType, setSelectedType] = useState('');
-    const [selectedProduct, setSelectedProduct] = useState('');
-    const [purchaseDate, setPurchaseDate] = useState('');
+    const [selectedProduct, setSelectedProduct] = useState(null);
     const [quantity, setQuantity] = useState('');
     const [price, setPrice] = useState('');
-    const [total, setTotal] = useState(0); // State for total amount
-    const [comment, setComment] = useState('');
     const [error, setError] = useState(null);
-    const username = localStorage.getItem('username')
+    const username = localStorage.getItem('username');
+    const navigate = useNavigate();
+    const formRef = useRef(null);
 
     useEffect(() => {
-        fetchProductTypes();
+        const fetchProducts = async () => {
+            try {
+                const response = await axios.get('http://localhost:5000/api/products');
+                setProducts(response.data);
+            } catch (err) {
+                console.error("Error fetching products:", err);
+                setError("Error fetching products. Please try again later.");
+            }
+        };
+
+        fetchProducts();
     }, []);
 
-    useEffect(() => {
-        if (selectedType) {
-            fetchProductsByType(selectedType);
+    const handleProductChange = (selectedOption) => {
+        setSelectedProduct(selectedOption);
+        if (selectedOption) {
+            setPrice(selectedOption.price);
         } else {
-            setProducts([]);
-            setSelectedProduct('')
-        }
-    }, [selectedType]);
-
-    useEffect(() => {
-        if (price && quantity) {
-            setTotal(parseFloat(price) * parseInt(quantity));
-        } else {
-            setTotal(0);
-        }
-    }, [price, quantity]);
-
-    const fetchProductTypes = async () => {
-        try {
-            const response = await axios.get('http://localhost:5000/api/product-types');
-            setProductTypes(response.data);
-        } catch (error) {
-            console.error("Error fetching product types:", error);
-            setError("Error fetching product types. Please try again later.");
+            setPrice('');
         }
     };
-
-    const fetchProductsByType = async (typeId) => {
-        try {
-            const response = await axios.get(`http://localhost:5000/api/products?typeId=${typeId}`);
-            setProducts(response.data);
-        } catch (error) {
-            console.error("Error fetching products:", error);
-            setError("Error fetching products. Please try again later.");
-        }
-    };
-
-    const handleTypeChange = (e) => {
-        setSelectedType(e.target.value);
-    };
-
-    const handleProductChange = (e) => {
-        setSelectedProduct(e.target.value);
-    }
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError(null);
 
+        if (!selectedProduct) {
+            setError("Please select a product.");
+            return;
+        }
+
+        if (!quantity || quantity <= 0) {
+            setError("Please enter a valid quantity.");
+            return;
+        }
+
+        if (!price || price <= 0) {
+            setError("Please enter a valid price.");
+            return;
+        }
+
         try {
-            const response = await axios.post('http://localhost:5000/api/purchases', {
-                date: purchaseDate,
+            const response = await axios.post('http://localhost:5000/api/purchase_details', {
                 quantity: parseInt(quantity),
                 price: parseFloat(price),
-                comment: comment,
-                prod_id: parseInt(selectedProduct),
-                username: username
+                prod_id: selectedProduct.value,
+                username: username,
             });
+
             if (response.status === 201) {
-                alert("Purchase added succesfully")
-                document.getElementById("purchaseForm").reset()
-                setSelectedType('')
+                alert('Purchase added successfully!');
+                handleCancel();
+            } else {
+                setError('Failed to add purchase.');
             }
-            else {
-                setError("error in adding purchase")
-            }
-        }
-        catch (error) {
-            console.error("Error adding purchase:", error);
-            if(error.response) {
-                setError(error.response.data.message)
-            }
-            else {
-                setError("Error in adding purchase")
+        } catch (err) {
+            console.error("Error adding purchase:", err);
+            if (err.response && err.response.data && err.response.data.message) {
+                setError(err.response.data.message);
+            } else {
+                setError('An error occurred while adding the purchase.');
             }
         }
-    }
+    };
+
+    const handleCancel = () => {
+        setQuantity('');
+        setPrice('');
+        setSelectedProduct(null);
+        if (formRef.current) {
+            formRef.current.reset();
+        }
+    };
+    const auth = useAuth();
+
+
+    const handleLogout = async () => {
+        try {
+            await axios.get('http://localhost:5000/logout');
+            localStorage.removeItem('isAuthenticated');
+            localStorage.removeItem('isAdmin');
+            localStorage.removeItem('username');
+            auth.logout();
+            navigate('/', { replace: true });
+        } catch (err) {
+            console.error("Error logging out:", err);
+            setError("An error occurred during logout.");
+        }
+    };
+
+    const productOptions = products.map(product => ({
+        value: product.prod_id,
+        label: product.prod_name,
+        price: product.price
+    }));
 
     return (
-        <div>
-            <header className="App-header">
-                <h1>Purchase Tracker</h1>
-                <div className="top-right-buttons">
-                    {/* Add Product Button */}
-                    <Link to="/add-product">
-                        <button>Add Product</button>
-                    </Link>
+        <div className="dashboard-container">
+            <div className="dashboard-card">
+                <header>
+                    <h1>Purchase Tracker</h1>
+                    <button className="logout-button" onClick={handleLogout}>Logout</button>
+                </header>
+                <h2>Record a New Purchase</h2>
+                {error && <div className="error-message">{error}</div>}
+                <form id="purchaseForm" onSubmit={handleSubmit} ref={formRef}>
+                    <div className="form-group">
+                        <label htmlFor="itemName">Product Name:</label>
+                        <Select
+                            value={selectedProduct}
+                            onChange={handleProductChange}
+                            options={productOptions}
+                            isSearchable
+                            placeholder="Search and select an item..."
+                            id="searchItem"
+                            isClearable
+                        />
+                    </div>
 
-                    {/* Product Report Button */}
-                    <Link to="/report">
-                        <button>Product Report</button>
-                    </Link>
-                    <Link to="/">
-                        <button>Logout</button>
-                    </Link>
-                </div>
-            </header>
-            <main>
-                <section id="purchase-form">
-                    <h2>Record a New Purchase</h2>
-                    {error && <div style={{ color: 'red' }}>{error}</div>}
-                    <form id="purchaseForm" onSubmit={handleSubmit}>
-                        <label htmlFor="purchaseDate">Purchase Date:</label>
-                        <input type="date" id="purchaseDate" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} required /><br />
-
-                        <label htmlFor="productType">Product Type:</label>
-                        <select id="productType" value={selectedType} onChange={handleTypeChange} required>
-                            <option value="">Select a Type</option>
-                            {productTypes.map((type) => (
-                                <option key={type.type_id} value={type.type_id}>
-                                    {type.type_name}
-                                </option>
-                            ))}
-                        </select><br />
-
-                        <label htmlFor="itemName">Name of Item:</label>
-                        <select id="itemName" value={selectedProduct} onChange={handleProductChange} required>
-                            <option value="">Select a Product</option>
-                            {products.map((product) => (
-                                <option key={product.prod_id} value={product.prod_id}>
-                                    {product.prod_name}
-                                </option>
-                            ))}
-                        </select><br />
-
+                    <div className="form-group">
                         <label htmlFor="quantity">Quantity:</label>
-                        <input type="number" id="quantity" value={quantity} onChange={(e) => setQuantity(e.target.value)} required /><br />
+                        <input type="number" id="quantity" value={quantity} onChange={(e) => setQuantity(e.target.value)} required />
+                    </div>
 
-                        <label htmlFor="price">Price:</label>
-                        <input type="number" id="price" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} required /><br />
-
+                    <div className="form-group">
                         <label htmlFor="total">Total Amount:</label>
-                        <input type="number" id="total" value={total} readOnly /><br /> {/* Display total */}
+                        <input type="number" id="total" value={price} onChange={(e) => setPrice(e.target.value)} required/>
+                    </div>
 
-                        <label htmlFor="comment">Comment/Note:</label>
-                        <textarea id="comment" value={comment} onChange={(e) => setComment(e.target.value)}></textarea><br />
-                        <div className="button-container">
-                            <button id="save" type="submit">Save</button>
-                            <button id="cancel" type="reset">Cancel</button>
-                        </div>
-                    </form>
-                </section>
-            </main>
+                    <div className="button-container">
+                        <button type="submit" className="submit-button">Save Purchase</button>
+                        <button type="button" className="cancel-button" onClick={handleCancel}>Cancel</button>
+                    </div>
+                </form>
+            </div>
         </div>
     );
 }
