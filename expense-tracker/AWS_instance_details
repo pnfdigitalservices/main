@@ -1,0 +1,17 @@
+AWS 
+Path of file
+/scratch/app/Purchase-Tracker-Backend-Code#
+Basic command
+npm start - to start the programe
+ls -> list
+cd .. -> remove one folder of path
+vi cors.js -> 
+clone repo path ->git clone https://github.com/yadavkuldeep1017/Purchase-Tracker-Backend-Code
+git -v -> git version
+cd /root/ -> To move to the root directory
+sudo apt-get install git -y -> git install
+sudo apt-get update -y
+mkdir scratch -> make directory
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.34.0/install.sh | bash-> to install nvm
+~/.nvm/nvm.sh
+
