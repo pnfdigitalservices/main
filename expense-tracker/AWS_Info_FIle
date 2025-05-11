@@ -5,3 +5,11 @@ tail -f path/to/log/file.log  -> if manually checking logs
 npm start -> to start the application
 npm install -> to install the npm ( node package manager)
 pwd-> current directory
+
+
+
+Solve the SW IS NOT RUnning/ Entry not save (issue was index.html file is not showing)
+/scratch/app/Purchase-Tracker-Backend-Code#-> go to this path from root directory
+pm2 stop 0
+pm2 delete 0
+pm2 start index.js 
