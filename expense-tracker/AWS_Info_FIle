@@ -1,0 +1,7 @@
+Sudo SU -> To change to root directory
+pm2 list -> to check all the running task of react js application
+pm2 log -> to check all the logs
+tail -f path/to/log/file.log  -> if manually checking logs
+npm start -> to start the application
+npm install -> to install the npm ( node package manager)
+pwd-> current directory
